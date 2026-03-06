@@ -17,7 +17,7 @@ export function ResultsScreen({
   topicId,
   color,
 }: ResultsScreenProps) {
-  const percentage = Math.round((correct / total) * 100)
+  const percentage = total > 0 ? Math.round((correct / total) * 100) : 0
   const [animatedPercentage, setAnimatedPercentage] = useState(0)
 
   useEffect(() => {

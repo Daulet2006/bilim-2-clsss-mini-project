@@ -93,19 +93,24 @@ function ImageUploader({
     try {
       const res = await fetch("/api/upload", { method: "POST", body: formData })
       const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed")
+      }
       if (data.url) {
         onImageChange(data.url)
       } else {
         alert("Сурет жүктелмеді: " + (data.error || "белгісіз қате"))
       }
-    } catch {
-      alert("Сурет жүктелмеді")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Сурет жүктелмеді"
+      alert("Сурет жүктелмеді: " + message)
     } finally {
       setUploading(false)
+      e.target.value = ""
     }
   }
 
-  const hasImage = currentImage && currentImage.length > 0
+  const hasImage = Boolean(currentImage && currentImage.length > 0)
 
   return (
     <div className="flex flex-col gap-2">
@@ -113,13 +118,15 @@ function ImageUploader({
       {hasImage ? (
         <div className="relative inline-block">
           <div className="relative h-32 w-48 overflow-hidden rounded-xl border-2 border-border">
-            <Image
-              src={currentImage!}
-              alt="Uploaded"
-              fill
-              className="object-cover"
-              unoptimized
-            />
+            {currentImage && (
+              <Image
+                src={currentImage}
+                alt="Uploaded"
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            )}
           </div>
           <button
             onClick={() => onImageChange(undefined)}
@@ -156,12 +163,23 @@ function TaskEditor({
   onChange,
   onRemove,
 }: {
-  task: TaskData
+  task?: TaskData
   onChange: (t: TaskData) => void
   onRemove: () => void
 }) {
+  let safeTask = task
+
+  if (!safeTask || !safeTask.type) {
+    safeTask = {
+      type: "multiple_choice",
+      question: "",
+      options: ["", "", "", ""],
+      correctAnswer: 0,
+    }
+  }
+
   const updateField = (field: string, value: unknown) => {
-    onChange({ ...task, [field]: value })
+    onChange({ ...safeTask, [field]: value })
   }
 
   return (
@@ -170,10 +188,10 @@ function TaskEditor({
         <div className="flex items-center gap-2">
           <Brain className="h-4 w-4 text-muted-foreground" />
           <select
-            value={task.type}
+            value={safeTask.type}
             onChange={(e) => {
               const type = e.target.value
-              const base: TaskData = { type, question: task.question }
+              const base: TaskData = { type, question: safeTask.question }
               if (type === "multiple_choice") {
                 base.options = ["", "", "", ""]
                 base.correctAnswer = 0
@@ -206,19 +224,19 @@ function TaskEditor({
       <input
         type="text"
         placeholder="Сұрақ..."
-        value={task.question}
+        value={safeTask.question}
         onChange={(e) => updateField("question", e.target.value)}
         className="mb-3 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-semibold"
       />
 
-      {task.type === "multiple_choice" && (
+      {safeTask.type === "multiple_choice" && (
         <div className="flex flex-col gap-2">
-          {(task.options || []).map((opt, i) => (
+          {(safeTask.options || []).map((opt, i) => (
             <div key={i} className="flex items-center gap-2">
               <input
                 type="radio"
-                name={`correct-${task.question}`}
-                checked={task.correctAnswer === i}
+                name={`correct-${safeTask.question}`}
+                checked={safeTask.correctAnswer === i}
                 onChange={() => updateField("correctAnswer", i)}
                 className="accent-primary"
               />
@@ -227,21 +245,21 @@ function TaskEditor({
                 value={opt}
                 placeholder={`${i + 1}-нұсқа`}
                 onChange={(e) => {
-                  const newOpts = [...(task.options || [])]
+                  const newOpts = [...(safeTask.options || [])]
                   newOpts[i] = e.target.value
                   updateField("options", newOpts)
                 }}
                 className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
               />
-              {(task.options || []).length > 2 && (
+              {(safeTask.options || []).length > 2 && (
                 <button
                   onClick={() => {
-                    const newOpts = (task.options || []).filter((_, j) => j !== i)
+                    const newOpts = (safeTask.options || []).filter((_, j) => j !== i)
                     const newCorrect =
-                      typeof task.correctAnswer === "number" && task.correctAnswer >= i && task.correctAnswer > 0
-                        ? task.correctAnswer - 1
-                        : task.correctAnswer
-                    onChange({ ...task, options: newOpts, correctAnswer: newCorrect })
+                      typeof safeTask.correctAnswer === "number" && safeTask.correctAnswer >= i && safeTask.correctAnswer > 0
+                        ? safeTask.correctAnswer - 1
+                        : safeTask.correctAnswer
+                    onChange({ ...safeTask, options: newOpts, correctAnswer: newCorrect })
                   }}
                   className="text-destructive"
                 >
@@ -251,7 +269,7 @@ function TaskEditor({
             </div>
           ))}
           <button
-            onClick={() => updateField("options", [...(task.options || []), ""])}
+            onClick={() => updateField("options", [...(safeTask.options || []), ""])}
             className="mt-1 text-xs font-bold text-primary hover:underline"
           >
             + Нұсқа қосу
@@ -259,12 +277,12 @@ function TaskEditor({
         </div>
       )}
 
-      {task.type === "true_false" && (
+      {safeTask.type === "true_false" && (
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm font-semibold">
             <input
               type="radio"
-              checked={task.correctAnswer === true}
+              checked={safeTask.correctAnswer === true}
               onChange={() => updateField("correctAnswer", true)}
               className="accent-primary"
             />
@@ -273,7 +291,7 @@ function TaskEditor({
           <label className="flex items-center gap-2 text-sm font-semibold">
             <input
               type="radio"
-              checked={task.correctAnswer === false}
+              checked={safeTask.correctAnswer === false}
               onChange={() => updateField("correctAnswer", false)}
               className="accent-primary"
             />
@@ -282,26 +300,26 @@ function TaskEditor({
         </div>
       )}
 
-      {task.type === "fill_blank" && (
+      {safeTask.type === "fill_blank" && (
         <input
           type="text"
           placeholder="Дұрыс жауап..."
-          value={(task.correctAnswer as string) || ""}
+          value={(safeTask.correctAnswer as string) || ""}
           onChange={(e) => updateField("correctAnswer", e.target.value)}
           className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
         />
       )}
 
-      {task.type === "match" && (
+      {safeTask.type === "match" && (
         <div className="flex flex-col gap-2">
-          {(task.pairs || []).map((pair, i) => (
+          {(safeTask.pairs || []).map((pair, i) => (
             <div key={i} className="flex items-center gap-2">
               <input
                 type="text"
                 value={pair.left}
                 placeholder="Сол жақ"
                 onChange={(e) => {
-                  const newPairs = [...(task.pairs || [])]
+                  const newPairs = [...(safeTask.pairs || [])]
                   newPairs[i] = { ...newPairs[i], left: e.target.value }
                   updateField("pairs", newPairs)
                 }}
@@ -313,16 +331,16 @@ function TaskEditor({
                 value={pair.right}
                 placeholder="Оң жақ"
                 onChange={(e) => {
-                  const newPairs = [...(task.pairs || [])]
+                  const newPairs = [...(safeTask.pairs || [])]
                   newPairs[i] = { ...newPairs[i], right: e.target.value }
                   updateField("pairs", newPairs)
                 }}
                 className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-sm"
               />
-              {(task.pairs || []).length > 1 && (
+              {(safeTask.pairs || []).length > 1 && (
                 <button
                   onClick={() => {
-                    const newPairs = (task.pairs || []).filter((_, j) => j !== i)
+                    const newPairs = (safeTask.pairs || []).filter((_, j) => j !== i)
                     updateField("pairs", newPairs)
                   }}
                   className="text-destructive"
@@ -334,7 +352,7 @@ function TaskEditor({
           ))}
           <button
             onClick={() =>
-              updateField("pairs", [...(task.pairs || []), { left: "", right: "" }])
+              updateField("pairs", [...(safeTask.pairs || []), { left: "", right: "" }])
             }
             className="mt-1 text-xs font-bold text-primary hover:underline"
           >

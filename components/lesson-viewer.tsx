@@ -36,6 +36,7 @@ export function LessonViewer({ lesson, topicId, color }: LessonViewerProps) {
   const [currentTask, setCurrentTask] = useState(0)
   const [score, setScore] = useState(0)
   const [taskAnswered, setTaskAnswered] = useState(false)
+  const tasks = (lesson.tasks || []).filter(Boolean)
 
   const handleAnswer = (correct: boolean) => {
     if (correct) setScore((prev) => prev + 1)
@@ -43,7 +44,7 @@ export function LessonViewer({ lesson, topicId, color }: LessonViewerProps) {
   }
 
   const handleNextTask = () => {
-    if (currentTask < lesson.tasks.length - 1) {
+    if (currentTask < tasks.length - 1) {
       setCurrentTask((prev) => prev + 1)
       setTaskAnswered(false)
     } else {
@@ -51,13 +52,22 @@ export function LessonViewer({ lesson, topicId, color }: LessonViewerProps) {
     }
   }
 
-  const task = lesson.tasks[currentTask]
+  const task = tasks[currentTask]
+  const safeTask =
+    task && task.type
+      ? task
+      : {
+          type: "multiple_choice",
+          question: "",
+          options: ["", "", "", ""],
+          correctAnswer: 0,
+        }
 
   if (viewMode === "results") {
     return (
       <ResultsScreen
         correct={score}
-        total={lesson.tasks.length}
+        total={tasks.length}
         topicId={topicId}
         color={color}
       />
@@ -110,13 +120,26 @@ export function LessonViewer({ lesson, topicId, color }: LessonViewerProps) {
 
       {viewMode === "tasks" && (
         <div className="flex flex-col gap-6">
+          {tasks.length === 0 && (
+            <div
+              className="rounded-3xl border-3 bg-card p-6 text-center shadow-lg sm:p-8"
+              style={{ borderColor: `${color}33` }}
+            >
+              <p className="text-base font-bold text-muted-foreground sm:text-lg">
+                Бұл сабақта тапсырма әлі қосылмаған.
+              </p>
+            </div>
+          )}
+
+          {tasks.length > 0 && (
+            <>
           {/* Task progress */}
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-muted-foreground">
-              {"Тапсырма"} {currentTask + 1} / {lesson.tasks.length}
+              {"Тапсырма"} {currentTask + 1} / {tasks.length}
             </span>
             <div className="flex gap-1.5">
-              {lesson.tasks.map((_, i) => (
+              {tasks.map((_, i) => (
                 <div
                   key={i}
                   className="h-2.5 w-8 rounded-full transition-all duration-300 sm:w-12"
@@ -134,39 +157,39 @@ export function LessonViewer({ lesson, topicId, color }: LessonViewerProps) {
             className="rounded-3xl border-3 bg-card p-6 shadow-lg sm:p-8"
             style={{ borderColor: `${color}33` }}
           >
-            {task.type === "multiple_choice" && (
+            {safeTask.type === "multiple_choice" && (
               <MultipleChoice
                 key={currentTask}
-                question={task.question}
-                options={task.options || []}
-                correctAnswer={task.correctAnswer as number}
+                question={safeTask.question}
+                options={safeTask.options || []}
+                correctAnswer={safeTask.correctAnswer as number}
                 onAnswer={handleAnswer}
                 color={color}
               />
             )}
-            {task.type === "true_false" && (
+            {safeTask.type === "true_false" && (
               <TrueFalse
                 key={currentTask}
-                question={task.question}
-                correctAnswer={task.correctAnswer as boolean}
+                question={safeTask.question}
+                correctAnswer={safeTask.correctAnswer as boolean}
                 onAnswer={handleAnswer}
                 color={color}
               />
             )}
-            {task.type === "fill_blank" && (
+            {safeTask.type === "fill_blank" && (
               <FillBlank
                 key={currentTask}
-                question={task.question}
-                correctAnswer={task.correctAnswer as string}
+                question={safeTask.question}
+                correctAnswer={safeTask.correctAnswer as string}
                 onAnswer={handleAnswer}
                 color={color}
               />
             )}
-            {task.type === "match" && (
+            {safeTask.type === "match" && (
               <MatchTask
                 key={currentTask}
-                question={task.question}
-                pairs={task.pairs || []}
+                question={safeTask.question}
+                pairs={safeTask.pairs || []}
                 onAnswer={handleAnswer}
                 color={color}
               />
@@ -181,12 +204,14 @@ export function LessonViewer({ lesson, topicId, color }: LessonViewerProps) {
                 className="flex items-center gap-2 rounded-full px-8 py-4 text-lg font-black text-white shadow-lg transition-all duration-200 hover:scale-105"
                 style={{ backgroundColor: color }}
               >
-                {currentTask < lesson.tasks.length - 1
+                {currentTask < tasks.length - 1
                   ? "Келесі тапсырма"
                   : "Нәтижені көру"}
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
+          )}
+            </>
           )}
         </div>
       )}

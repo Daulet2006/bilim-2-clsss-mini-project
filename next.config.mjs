@@ -7,15 +7,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**.public.blob.vercel-storage.com",
-      },
-      {
-        protocol: "https",
-        hostname: "**.blob.vercel-storage.com",
-      },
-      {
-        protocol: "https",
-        hostname: "*.vercel-storage.com",
+        hostname: "res.cloudinary.com",
       },
     ],
     unoptimized: true,
